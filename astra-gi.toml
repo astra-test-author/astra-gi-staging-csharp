@@ -3,10 +3,18 @@ schema = 1
 [integration]                      # metadata: shown to the user, never acted on
 id = "astra-test-author.gi-staging-csharp"
 name = "Staging C# Test GI"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["astra-test-author"]
 license = "MIT"
 repo = "https://github.com/astra-test-author/astra-gi-staging-csharp"
+
+# manifest.md §2.2: a name this install's own [[game_files]]/[launch] places or touches must be
+# labelled here, or gi-probe's real check refuses with loader-undeclared -- found by actually
+# running it (CLAUDE.md "test the thing"): astra-lethal's own astra-gi.toml places winhttp.dll the
+# same way and carries no [integration.loader] table either, so it would hit the same finding if
+# re-ingested today.
+[integration.loader]
+proxies = ["winhttp.dll"]
 
 [target]                           # which game: Lethal Company (Unity Mono), the same game
 steam_appid = 1966720              # astra-lethal (first-party) targets, for the staging rehearsal

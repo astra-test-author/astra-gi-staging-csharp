@@ -13,7 +13,7 @@
     <Nullable>disable</Nullable>
     <BepInExPluginGuid>astra-test-author.gi-staging-csharp</BepInExPluginGuid>
     <BepInExPluginName>Staging C# Test GI</BepInExPluginName>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <SteamAppId>1966720</SteamAppId>
   </PropertyGroup>
 
