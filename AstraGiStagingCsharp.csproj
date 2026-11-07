@@ -3,7 +3,8 @@
        dev/game-integrations-plan-merged.md, G3 "Done when"): it logs one line at Awake and does
        nothing else. Never for players: it exists only to rehearse the games catalogue's staging
        done-when, end to end, as a non-owner third-party author would. Built from PUBLIC inputs only
-       (BepInEx.Core, UnityEngine.Modules, both from nuget.org): never the game's own files. -->
+       (BepInEx.Core from nuget.bepinex.dev, UnityEngine.Modules from nuget.org): never the
+       game's own files. -->
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>AstraGiStagingCsharp</AssemblyName>
@@ -12,14 +13,14 @@
     <Nullable>disable</Nullable>
     <BepInExPluginGuid>astra-test-author.gi-staging-csharp</BepInExPluginGuid>
     <BepInExPluginName>Staging C# Test GI</BepInExPluginName>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <SteamAppId>1966720</SteamAppId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.4.21" PrivateAssets="all" />
-    <PackageReference Include="UnityEngine.Modules" Version="2021.3.45" IncludeAssets="compile" PrivateAssets="all" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" PrivateAssets="all" />
   </ItemGroup>
 
   <!-- The installed-version marker the Astra client reads, beside the plugin. -->

@@ -3,7 +3,7 @@ schema = 1
 [integration]                      # metadata: shown to the user, never acted on
 id = "astra-test-author.gi-staging-csharp"
 name = "Staging C# Test GI"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["astra-test-author"]
 license = "MIT"
 repo = "https://github.com/astra-test-author/astra-gi-staging-csharp"
