@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- A minimal staging TEST game integration (astra-plugins-ops
        dev/game-integrations-plan-merged.md, G3 "Done when"): it logs one line at Awake and does
-       nothing else. Never for players -- it exists only to rehearse the games catalogue's staging
+       nothing else. Never for players: it exists only to rehearse the games catalogue's staging
        done-when, end to end, as a non-owner third-party author would. Built from PUBLIC inputs only
-       (BepInEx.Core, UnityEngine.Modules, both from nuget.org) -- never the game's own files. -->
+       (BepInEx.Core, UnityEngine.Modules, both from nuget.org): never the game's own files. -->
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>AstraGiStagingCsharp</AssemblyName>
@@ -12,7 +12,7 @@
     <Nullable>disable</Nullable>
     <BepInExPluginGuid>astra-test-author.gi-staging-csharp</BepInExPluginGuid>
     <BepInExPluginName>Staging C# Test GI</BepInExPluginName>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <SteamAppId>1966720</SteamAppId>
   </PropertyGroup>
 
