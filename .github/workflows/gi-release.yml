@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: MIT
+#
+# Copied from AstraPlugins' templates/gi-release.yml (the game-integration release template) with
+# the one marked "BUILD YOUR INTEGRATION HERE" section filled in for this C# BepInEx staging test
+# GI. Everything else is the template, unedited.
+
+name: Astra game-integration release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  BEPINEX_VERSION: "5.4.23.5"
+  BEPINEX_ZIP_URL: "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.5/BepInEx_win_x64_5.4.23.5.zip"
+  BEPINEX_ZIP_SHA256: "82f9878551030f54657792c0740d9d51a09500eeae1fba21106b0c441e6732c4"
+  # The first-party Astra Unity foundation's own release (public): bundled so the launcher never
+  # has to fetch it separately (manifest.md §2, "every integration's zip bundles it").
+  FOUNDATION_ASSET_URL: "https://github.com/mihailinl/astra-bepinex/releases/download/v0.5.0/astra-gi.zip"
+  FOUNDATION_ASSET_SHA256: "7b58b749517c2ed745b2942f2e860df5f4e5af729185371a7a7aebcb9f25ae67"
+
+jobs:
+  release:
+    name: Build, attest and publish astra-gi.zip
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write      # create the Release and upload the asset
+      id-token: write      # mint the OIDC token that makes attestation keyless
+      attestations: write  # store the attestation on GitHub
+    env:
+      ZIP_ROOT: dist/gi
+      ASSET: astra-gi.zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        with:
+          persist-credentials: false
+
+      # ── BUILD YOUR INTEGRATION HERE ───────────────────────────────────
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build the plugin
+        run: dotnet build -c Release -p:TreatWarningsAsErrors=true
+
+      - name: Download BepInEx and verify its digest
+        run: |
+          set -euo pipefail
+          curl -sSL -o bepinex.zip "$BEPINEX_ZIP_URL"
+          echo "$BEPINEX_ZIP_SHA256  bepinex.zip" | sha256sum -c -
+          mkdir -p bepinex-dist && unzip -q bepinex.zip -d bepinex-dist
+
+      - name: Download the Astra Unity foundation and verify its digest
+        run: |
+          set -euo pipefail
+          curl -sSL -o foundation.zip "$FOUNDATION_ASSET_URL"
+          echo "$FOUNDATION_ASSET_SHA256  foundation.zip" | sha256sum -c -
+          mkdir -p foundation-mono && unzip -q foundation.zip -d foundation-mono
+
+      - name: Lay out the zip root
+        run: |
+          set -euo pipefail
+          mkdir -p "$ZIP_ROOT/BepInEx/core" "$ZIP_ROOT/BepInEx/plugins/AstraGiStagingCsharp" "$ZIP_ROOT/licenses"
+          cp -r bepinex-dist/BepInEx/core/. "$ZIP_ROOT/BepInEx/core/"
+          cp -r foundation-mono/BepInEx/plugins/Astra "$ZIP_ROOT/BepInEx/plugins/Astra"
+          cp bin/Release/netstandard2.1/AstraGiStagingCsharp.dll "$ZIP_ROOT/BepInEx/plugins/AstraGiStagingCsharp/"
+          cp bin/Release/netstandard2.1/astra-item.json "$ZIP_ROOT/BepInEx/plugins/AstraGiStagingCsharp/"
+          cp bepinex-dist/winhttp.dll "$ZIP_ROOT/winhttp.dll"
+          cp doorstop_config.ini "$ZIP_ROOT/doorstop_config.ini"
+          cp LICENSE "$ZIP_ROOT/licenses/astra-gi-staging-csharp-LICENSE.txt"
+          cp licenses/BepInEx-LICENSE.txt "$ZIP_ROOT/licenses/BepInEx-LICENSE.txt"
+          cp licenses/astra-foundation-LICENSE.txt "$ZIP_ROOT/licenses/astra-foundation-LICENSE.txt"
+          cp astra-gi.toml "$ZIP_ROOT/astra-gi.toml"
+      #
+      # ───────────────────────────────────────────────────────────────────
+
+      # ── zip hygiene, checked before you ever ship it ──────────────────
+      - name: Lay out and hygiene-check the zip
+        run: |
+          set -euo pipefail
+          test -f "$ZIP_ROOT/astra-gi.toml" || {
+            echo "::error::$ZIP_ROOT/astra-gi.toml is missing -- did the build step above run?"
+            exit 1
+          }
+          python3 - "$ZIP_ROOT" "$ASSET" <<'PY'
+          import os
+          import sys
+          import zipfile
+
+          root, asset = sys.argv[1], sys.argv[2]
+          entries = []
+          for dirpath, _dirnames, filenames in os.walk(root):
+              for name in sorted(filenames):
+                  full = os.path.join(dirpath, name)
+                  rel = os.path.relpath(full, root)
+                  if os.path.islink(full):
+                      print(f"::error::{rel} is a symbolic link; astra-gi.zip may not contain one")
+                      sys.exit(1)
+                  if rel.startswith("..") or os.path.isabs(rel):
+                      print(f"::error::{rel} escapes the zip root")
+                      sys.exit(1)
+                  entries.append((rel.replace(os.sep, "/"), full))
+
+          entries.sort(key=lambda e: e[0])
+          with zipfile.ZipFile(asset, "w", zipfile.ZIP_DEFLATED) as z:
+              for rel, full in entries:
+                  z.write(full, rel)
+
+          size = os.path.getsize(asset)
+          print(f"{asset}: {len(entries)} entries, {size} bytes")
+          PY
+
+      - name: Confirm astra-gi.toml at least parses as TOML
+        run: |
+          set -euo pipefail
+          python3 -c "
+          import tomllib
+          with open('$ZIP_ROOT/astra-gi.toml', 'rb') as f:
+              doc = tomllib.load(f)
+          assert doc.get('schema') == 1, 'schema must be 1'
+          assert 'integration' in doc and 'target' in doc, 'missing [integration] or [target]'
+          print('astra-gi.toml: schema 1, id', doc['integration'].get('id'))
+          "
+
+      - name: Conformance-test Astra Link, if declared and the mock is available
+        run: |
+          set -euo pipefail
+          if ! grep -q '^\[integration\.link\]' "$ZIP_ROOT/astra-gi.toml" 2>/dev/null; then
+            echo "no [integration.link] table -- nothing to conformance-test"
+          elif ! command -v astra-link-mock >/dev/null 2>&1; then
+            echo "astra-link-mock is not yet published (spec/games/link-v1.md §7, 0.2.8.x) -- skipping"
+          else
+            astra-link-mock --manifest "$ZIP_ROOT/astra-gi.toml"
+          fi
+
+      - name: Attest the build
+        id: attest
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2 (v2.4.0)
+        with:
+          subject-path: ${{ env.ASSET }}
+
+      - name: Record the digest
+        id: digest
+        run: |
+          set -euo pipefail
+          sha256sum "$ASSET" | tee SHA256SUMS.txt
+
+      - name: Create the Release and upload the asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          notes=$(cat <<EOF
+          Built by GitHub Actions from \`${GITHUB_SHA}\`.
+
+          \`$ASSET\` is attested over its own sha256: the attestation names this
+          repository and this commit as the source. Verify it yourself:
+
+          \`\`\`
+          gh attestation verify $ASSET --repo ${GITHUB_REPOSITORY} --signer-workflow ${GITHUB_WORKFLOW_REF%@*}
+          \`\`\`
+
+          An attestation proves where this file came from. It does not prove the
+          code inside it is safe: a game integration runs inside your game with
+          your own account's full privileges, exactly like any other mod.
+
+          Staging test GI -- not for players.
+          EOF
+          )
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists -- uploading to it."
+          else
+            gh release create "$TAG" --title "$TAG" --notes "$notes" --verify-tag
+          fi
+          gh release upload "$TAG" "$ASSET" SHA256SUMS.txt --clobber
+          echo "Published $TAG"
